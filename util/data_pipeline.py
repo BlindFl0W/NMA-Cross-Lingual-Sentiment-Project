@@ -60,9 +60,29 @@ def get_data_loaders(tokenizer, presentage: float, batch_size: int, preprocessin
 
     return english_train_loader, english_validation_loader, target_validation_loader, target_test_loader
 
-def preprocess_data():
-    # To Do
-    pass
+def preprocess_data(text, language_model=None):
+    if not language_model:
+        return text 
+    try:
+        nlp = spacy.load(language_model)
+    except OSError:
+        raise ValueError(f"Spacy language model {language_model} not found. Please install it first.")
+    text = text.strip().replace('\n', ' ').replace('\r', ' ')
+    text = text.encode('utf-8').decode('utf-8-sig').lower()
+    text = re.sub(r'(RT @\w+|http\S+|www\S+|@\S+|&[a-z]+;|\n|\r)', '', text)
+    if not language_model:
+        return text
+    doc = nlp(text)
+    words = [
+        token.lemma_
+        for token in doc
+        if not token.is_punct
+        and not token.is_digit
+        and not token.is_stop
+        and not token.is_space
+        and token.is_alpha
+    ]
+    return ' '.join(words)
 
 def download_data() -> DatasetDict:
     dataset = load_dataset("clapAI/MultiLingualSentiment")
@@ -91,8 +111,9 @@ def get_train_validation_test_split(dataset: DatasetDict, percentage: float) -> 
 
     return english_train_dataset, english_validation_dataset, target_validation_dataset, target_test_dataset
 
-def get_dataframes(dataset: DatasetDict) -> pd.DataFrame:
+def get_dataframes(dataset: DatasetDict, language_model="en_core_web_sm") -> pd.DataFrame:
     df = pd.DataFrame(dataset)
     df.drop(columns=['source', 'domain', 'language'], inplace=True)
     df['label'] = df['label'].map({'positive': 0, 'neutral': 1, 'negative': 2})
+    df['text'] = df['text'].apply(lambda x: preprocess_data(x, language_model))
     return df
