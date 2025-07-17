@@ -137,7 +137,7 @@ class ModelTrainer:
                 # Forward pass with mixed precision if enabled
                 if self.use_mixed_precision:
                     # Use autocast for forward pass
-                    with autocast():
+                    with autocast(device_type='cuda', dtype=torch.float16):
                         outputs = self.model(input_ids, attention_mask=attention_mask)
                         loss = self.criterion(outputs, labels)
                     
@@ -221,7 +221,7 @@ class ModelTrainer:
                 
                 # Forward pass with mixed precision if enabled
                 if self.use_mixed_precision:
-                    with autocast():
+                    with autocast(device_type='cuda', dtype=torch.float16):
                         outputs = self.model(input_ids, attention_mask=attention_mask)
                         loss = self.criterion(outputs, labels)
                 else:
