@@ -3,18 +3,16 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 from datasets import load_dataset, DatasetDict, Dataset
 from typing import Tuple
+import spacy
+import re
 
 def get_data_loaders(tokenizer, presentage: float, batch_size: int, preprocessing: bool = False) -> tuple[DataLoader, DataLoader, DataLoader, DataLoader]:
     dataset = download_data()
     english_train_dataset, english_validation_dataset, target_validation_dataset, target_test_dataset = get_train_validation_test_split(dataset, presentage)
-    english_train_df = get_dataframes(english_train_dataset)
-    english_validation_df = get_dataframes(english_validation_dataset)
-    target_validation_df = get_dataframes(target_validation_dataset)
-    target_test_df = get_dataframes(target_test_dataset)
-
-    if preprocessing:
-        # To Do
-        pass
+    english_train_df = get_dataframes(english_train_dataset, preprocessing)
+    english_validation_df = get_dataframes(english_validation_dataset, preprocessing)
+    target_validation_df = get_dataframes(target_validation_dataset, preprocessing)
+    target_test_df = get_dataframes(target_test_dataset, preprocessing)
 
     # Tokenize the 'text' column
     # Using padding='max_length' and truncation=True to handle variable lengths
@@ -111,9 +109,10 @@ def get_train_validation_test_split(dataset: DatasetDict, percentage: float) -> 
 
     return english_train_dataset, english_validation_dataset, target_validation_dataset, target_test_dataset
 
-def get_dataframes(dataset: DatasetDict, language_model="en_core_web_sm") -> pd.DataFrame:
+def get_dataframes(dataset: DatasetDict, language_model="en_core_web_sm", preprocessing: bool = False) -> pd.DataFrame:
     df = pd.DataFrame(dataset)
     df.drop(columns=['source', 'domain', 'language'], inplace=True)
     df['label'] = df['label'].map({'positive': 0, 'neutral': 1, 'negative': 2})
-    df['text'] = df['text'].apply(lambda x: preprocess_data(x, language_model))
+    if preprocessing:
+        df['text'] = df['text'].apply(lambda x: preprocess_data(x, language_model))
     return df
