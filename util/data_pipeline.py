@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from datasets import load_dataset, DatasetDict, Dataset
 from typing import Tuple
 import spacy
+from spacy.cli import download as spacy_download
 import re
 
 def get_data_loaders(tokenizer, presentage: float, batch_size: int, preprocessing: bool = False) -> tuple[DataLoader, DataLoader, DataLoader, DataLoader]:
@@ -59,17 +60,18 @@ def get_data_loaders(tokenizer, presentage: float, batch_size: int, preprocessin
     return english_train_loader, english_validation_loader, target_validation_loader, target_test_loader
 
 def preprocess_data(text, language_model=None):
-    if not language_model:
-        return text 
-    try:
-        nlp = spacy.load(language_model)
-    except OSError:
-        raise ValueError(f"Spacy language model {language_model} not found. Please install it first.")
     text = text.strip().replace('\n', ' ').replace('\r', ' ')
     text = text.encode('utf-8').decode('utf-8-sig').lower()
     text = re.sub(r'(RT @\w+|http\S+|www\S+|@\S+|&[a-z]+;|\n|\r)', '', text)
     if not language_model:
         return text
+    try:
+        nlp = spacy.load(language_model)
+    except OSError:
+        print(f"Model '{language_model}' not found. Downloading now…")
+        spacy_download(language_model)
+        nlp = spacy.load(language_model)
+
     doc = nlp(text)
     words = [
         token.lemma_
