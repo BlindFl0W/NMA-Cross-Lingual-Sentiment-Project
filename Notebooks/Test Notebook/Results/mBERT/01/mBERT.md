@@ -12,10 +12,10 @@
 | Parameter | Value |
 |-----------|-------|
 | **Learning Rate** | 2e-5 |
-| **Epochs** | 3 |
+| **Epochs** | 10 |
 | **Batch Size** | 48 |
 | **Optimizer** | AdamW |
-| **Data Percentage** | 1% of full dataset |
+| **Data Percentage** | 2% of full dataset |
 | **Device** | CUDA (GPU) |
 
 ## Visualizations
