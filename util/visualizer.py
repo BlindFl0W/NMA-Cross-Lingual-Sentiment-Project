@@ -23,7 +23,8 @@ import json
 import os
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
-
+from sklearn.metrics import roc_curve, auc
+from sklearn.preprocessing import label_binarize
 
 class TrainingVisualizer:
     """
@@ -350,6 +351,60 @@ class TrainingVisualizer:
             plt.show()
         
         return fig
+
+    def plot_roc_curve(self, fpr, tpr, roc_auc, class_names=None, save_path=None, show=True):
+        """
+        Plot a multiclass ROC curve.
+
+        Args:
+            fpr (dict): False positive rates for each class and 'micro'.
+            tpr (dict): True positive rates for each class and 'micro'.
+            roc_auc (dict): AUC values for each class and 'micro'.
+            class_names (list, optional): List of class names. Defaults to ['Positive', 'Neutral', 'Negative'].
+            save_path (str, optional): Path to save the figure. If None, the plot is not saved.
+            show (bool, optional): Whether to display the plot. Defaults to True.
+
+        Returns:
+            matplotlib.figure.Figure: The generated ROC curve figure.
+        """
+        if class_names is None:
+            class_names = ['Positive', 'Neutral', 'Negative']
+            
+        fig, ax = plt.subplots(figsize=self.figsize)
+        
+        # Plot each class's ROC curve
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
+        for i, color in zip(range(len(class_names)), colors):
+            ax.plot(fpr[i], tpr[i], color=color, lw=2,
+                    label='{0} (AUC = {1:0.2f})'.format(class_names[i], roc_auc[i]))
+        
+        # Plot micro-average ROC curve
+        ax.plot(fpr["micro"], tpr["micro"],
+                label='Micro-average (AUC = {0:0.2f})'.format(roc_auc["micro"]),
+                color='deeppink', linestyle=':', linewidth=4)
+        
+        # Plot the chance line
+        ax.plot([0, 1], [0, 1], 'k--', lw=2)
+        
+        # Configure plot appearance
+        ax.set_xlim([0.0, 1.0])
+        ax.set_ylim([0.0, 1.05])
+        ax.set_xlabel('False Positive Rate', fontsize=12)
+        ax.set_ylabel('True Positive Rate', fontsize=12)
+        ax.set_title('Multi-class ROC Curve', fontsize=14, fontweight='bold')
+        ax.legend(loc="lower right")
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
+            print(f"ROC curve saved to {save_path}")
+        
+        if show:
+            plt.show()
+        
+        return fig
     
     def plot_final_comparison(self, history: Dict, save_path: Optional[str] = None, show: bool = True) -> plt.Figure:
         """
@@ -413,7 +468,7 @@ class TrainingVisualizer:
         
         return fig
     
-    def save_all_plots(self, history: Dict, output_dir: str = "plots"):
+    def save_all_plots(self, history: Dict,  trainer: ModelTrainer, output_dir: str = "plots"):
         """
         Generate and save all visualization plots to a directory.
         
@@ -432,6 +487,14 @@ class TrainingVisualizer:
         self.plot_transfer_gap(history, os.path.join(output_dir, "transfer_gap.png"), show=False)
         self.plot_training_dashboard(history, os.path.join(output_dir, "dashboard.png"), show=False)
         self.plot_final_comparison(history, os.path.join(output_dir, "final_comparison.png"), show=False)
+        # ROC curve (need trainer)
+        try:
+            fpr, tpr, roc_auc = trainer.get_roc_data(trainer.english_val_loader)
+            self.plot_roc_curve(fpr, tpr, roc_auc, 
+                            os.path.join(output_dir, "roc_curve.png"), 
+                            show=False)
+        except Exception as e:
+            print(f"Failed to generate ROC curve: {str(e)}")
         
         print(f"All plots saved successfully!")
     

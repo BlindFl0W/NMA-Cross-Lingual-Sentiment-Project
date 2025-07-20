@@ -71,7 +71,6 @@ def preprocess_data(text, language_model=None):
         print(f"Model '{language_model}' not found. Downloading now…")
         spacy_download(language_model)
         nlp = spacy.load(language_model)
-
     doc = nlp(text)
     words = [
         token.lemma_

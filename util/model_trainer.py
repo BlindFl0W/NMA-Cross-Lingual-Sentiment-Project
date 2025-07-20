@@ -117,7 +117,9 @@ class ModelTrainer:
             'english_val_accuracies': [],
             'target_val_losses': [],
             'target_val_accuracies': [],
-            'learning_rates': []
+            'learning_rates': [],
+            'val_roc_auc': [], # add ROC auc
+            'target_val_roc_auc':[]
         }
         
         # Training loop with epoch progress bar
@@ -170,9 +172,17 @@ class ModelTrainer:
             train_acc = accuracy_score(train_labels, train_predictions)
             
             # Evaluate on validation sets
-            eng_val_loss, eng_val_acc = self.evaluate(self.english_val_loader, "English Val")
-            target_val_loss, target_val_acc = self.evaluate(self.target_val_loader, "Target Val")
+            eng_val_loss, eng_val_acc, eng_probs, eng_labels = self.evaluate(self.english_val_loader, "English Val")
+            target_val_loss, target_val_acc, target_probs, target_labels = self.evaluate(self.target_val_loader, "Target Val")
             
+            # calculate English validation ROC auc
+            _, _, eng_roc_auc = self.compute_roc(eng_probs, eng_labels)
+            history['val_roc_auc'].append(eng_roc_auc)
+
+            # calculate target validation ROC auc
+            _, _, tgt_roc_auc = self.compute_roc(target_probs, target_labels)
+            history.setdefault('target_val_roc_auc', []).append(tgt_roc_auc)
+
             # Store metrics in history
             history['train_losses'].append(avg_loss)
             history['train_accuracies'].append(train_acc)
@@ -212,6 +222,7 @@ class ModelTrainer:
         total_loss = 0
         predictions = []
         true_labels = []
+        all_probs = []
         
         # Evaluation loop without gradient computation
         with torch.no_grad():
@@ -230,6 +241,8 @@ class ModelTrainer:
                 
                 # Accumulate loss and predictions
                 total_loss += loss.item()
+                probs = torch.softmax(outputs, dim=1)
+                all_probs.extend(probs.cpu().numpy())
                 preds = torch.argmax(outputs, dim=1)
                 predictions.extend(preds.cpu().numpy())
                 true_labels.extend(labels.cpu().numpy())
@@ -240,7 +253,30 @@ class ModelTrainer:
         
         # Return to training mode
         self.model.train()
-        return avg_loss, accuracy
+        return avg_loss, accuracy, np.array(all_probs), np.array(true_labels)
+
+    def compute_roc(self, probs, true_labels):
+        """calculate multiclass ROC and AUC"""
+        true_labels_bin = label_binarize(true_labels, classes=[0, 1, 2])
+        n_classes = true_labels_bin.shape[1]
+        # ROC for each class
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        
+        for i in range(n_classes):
+            fpr[i], tpr[i], _ = roc_curve(true_labels_bin[:, i], probs[:, i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+
+        fpr["micro"], tpr["micro"], _ = roc_curve(true_labels_bin.ravel(), probs.ravel())
+        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+        
+        return fpr, tpr, roc_auc
+
+    def get_roc_data(self, data_loader):
+        """get data to plot ROC curve"""
+        _, _, probs, labels = self.evaluate(data_loader)
+        return self.compute_roc(probs, labels)
 
     def test(self):
         """
