@@ -468,7 +468,7 @@ class TrainingVisualizer:
         
         return fig
     
-    def save_all_plots(self, history: Dict,  trainer: ModelTrainer, output_dir: str = "plots"):
+    def save_all_plots(self, history: Dict,  trainer=None, output_dir: str = "plots"):
         """
         Generate and save all visualization plots to a directory.
         

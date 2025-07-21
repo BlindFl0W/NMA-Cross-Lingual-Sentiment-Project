@@ -23,6 +23,8 @@ import os
 import json
 from torch.amp import autocast, GradScaler
 import numpy as np
+from sklearn.preprocessing import label_binarize
+from sklearn.metrics import roc_curve, auc
 
 
 class ModelTrainer:
