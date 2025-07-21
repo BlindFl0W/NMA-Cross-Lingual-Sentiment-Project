@@ -121,8 +121,8 @@ class ModelTrainer:
             'target_val_losses': [],
             'target_val_accuracies': [],
             'learning_rates': [],
-            'val_roc_auc': [], # add ROC auc
-            'target_val_roc_auc':[]
+            # 'val_roc_auc': [], # add ROC auc
+            # 'target_val_roc_auc':[]
         }
         
         # Training loop with epoch progress bar
@@ -178,13 +178,14 @@ class ModelTrainer:
             eng_val_loss, eng_val_acc, eng_probs, eng_labels = self.evaluate(self.english_val_loader, "English Val")
             target_val_loss, target_val_acc, target_probs, target_labels = self.evaluate(self.target_val_loader, "Target Val")
             
-            # calculate English validation ROC auc
-            _, _, eng_roc_auc = self.compute_roc(eng_probs, eng_labels)
-            history['val_roc_auc'].append(eng_roc_auc)
+            # No Need To calculate ROC auc in Training
+            # # calculate English validation ROC auc
+            # _, _, eng_roc_auc = self.compute_roc(eng_probs, eng_labels)
+            # history['val_roc_auc'].append(eng_roc_auc)
 
-            # calculate target validation ROC auc
-            _, _, tgt_roc_auc = self.compute_roc(target_probs, target_labels)
-            history.setdefault('target_val_roc_auc', []).append(tgt_roc_auc)
+            # # calculate target validation ROC auc
+            # _, _, tgt_roc_auc = self.compute_roc(target_probs, target_labels)
+            # history.setdefault('target_val_roc_auc', []).append(tgt_roc_auc)
 
             # Store metrics in history
             history['train_losses'].append(avg_loss)
