@@ -22,6 +22,7 @@ from tqdm.auto import tqdm
 import os
 import json
 from torch.amp import autocast, GradScaler
+import numpy as np
 
 
 class ModelTrainer:
