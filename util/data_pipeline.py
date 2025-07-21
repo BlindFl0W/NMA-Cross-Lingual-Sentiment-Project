@@ -7,7 +7,7 @@ import spacy
 from spacy.cli import download as spacy_download
 import re
 
-def get_data_loaders(tokenizer, presentage: float, batch_size: int, preprocessing: bool = False) -> tuple[DataLoader, DataLoader, DataLoader, DataLoader]:
+def get_data_loaders(tokenizer, presentage: float, batch_size: int, preprocessing: bool = False, max_length: int = 512) -> tuple[DataLoader, DataLoader, DataLoader, DataLoader]:
     dataset = download_data()
     english_train_dataset, english_validation_dataset, target_validation_dataset, target_test_dataset = get_train_validation_test_split(dataset, presentage)
     english_train_df = get_dataframes(english_train_dataset, preprocessing)
@@ -17,10 +17,10 @@ def get_data_loaders(tokenizer, presentage: float, batch_size: int, preprocessin
 
     # Tokenize the 'text' column
     # Using padding='max_length' and truncation=True to handle variable lengths
-    english_train_encodings = tokenizer(english_train_df['text'].tolist(), truncation=True, padding='max_length', max_length=512)
-    english_validation_encodings = tokenizer(english_validation_df['text'].tolist(), truncation=True, padding='max_length', max_length=512)
-    target_validation_encodings = tokenizer(target_validation_df['text'].tolist(), truncation=True, padding='max_length', max_length=512)
-    target_test_encodings = tokenizer(target_test_df['text'].tolist(), truncation=True, padding='max_length', max_length=512)
+    english_train_encodings = tokenizer(english_train_df['text'].tolist(), truncation=True, padding='max_length', max_length=max_length)
+    english_validation_encodings = tokenizer(english_validation_df['text'].tolist(), truncation=True, padding='max_length', max_length=max_length)
+    target_validation_encodings = tokenizer(target_validation_df['text'].tolist(), truncation=True, padding='max_length', max_length=max_length)
+    target_test_encodings = tokenizer(target_test_df['text'].tolist(), truncation=True, padding='max_length', max_length=max_length)
 
     # Create TensorDatasets
     english_train_labels = torch.tensor(english_train_df['label'].tolist())
