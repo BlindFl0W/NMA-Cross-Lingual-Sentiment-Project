@@ -3,17 +3,22 @@ Visualizer Module for Cross-lingual Sentiment Classification Training Results
 
 This module provides comprehensive visualization functions for analyzing and plotting
 training results from the ModelTrainer. It includes functions for plotting losses,
-accuracies, learning rates, cross-lingual transfer performance, and creating
+accuracies, F1-scores, learning rates, cross-lingual transfer performance, and creating
 comprehensive training summaries.
 
 Features:
 - Training and validation loss plots
 - Accuracy progression plots
+- F1-score progression plots
+- Accuracy vs F1-score comparison plots
 - Learning rate schedule visualization
-- Cross-lingual transfer gap analysis
-- Comprehensive training dashboard
+- Cross-lingual transfer gap analysis (for both accuracy and F1-score)
+- Comprehensive training dashboard with all metrics
+- Final performance comparison with multiple metrics
+- ROC curve plotting for multi-class classification
 - Customizable plot styling
 - Save plots to files
+- Convenience functions for quick plotting
 """
 
 import matplotlib.pyplot as plt
@@ -175,6 +180,124 @@ class TrainingVisualizer:
         
         return fig
     
+    def plot_f1_scores(self, history: Dict, save_path: Optional[str] = None, show: bool = True) -> plt.Figure:
+        """
+        Plot training and validation F1-scores over epochs.
+        
+        Args:
+            history (dict): Training history dictionary from ModelTrainer
+            save_path (str, optional): Path to save the plot
+            show (bool): Whether to display the plot
+            
+        Returns:
+            matplotlib.figure.Figure: The created figure
+        """
+        fig, ax = plt.subplots(figsize=self.figsize)
+        
+        epochs = range(1, len(history['train_f1_scores']) + 1)
+        
+        # Plot F1-score curves
+        ax.plot(epochs, history['train_f1_scores'], 
+                color=self.color_palette['train'], marker='o', linewidth=2,
+                label='Training F1-Score', markersize=4)
+        ax.plot(epochs, history['english_val_f1_scores'], 
+                color=self.color_palette['english_val'], marker='s', linewidth=2,
+                label='English Validation F1-Score', markersize=4)
+        ax.plot(epochs, history['target_val_f1_scores'], 
+                color=self.color_palette['target_val'], marker='^', linewidth=2,
+                label='Target Validation F1-Score', markersize=4)
+        
+        # Styling
+        ax.set_xlabel('Epoch', fontsize=12, fontweight='bold')
+        ax.set_ylabel('F1-Score (Macro)', fontsize=12, fontweight='bold')
+        ax.set_title('Training and Validation F1-Score Progression', fontsize=14, fontweight='bold')
+        ax.legend(fontsize=10)
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim(0, 1)
+        
+        # Add best F1-score annotation
+        best_target_f1 = max(history['target_val_f1_scores'])
+        best_epoch = history['target_val_f1_scores'].index(best_target_f1) + 1
+        ax.annotate(f'Best Target F1: {best_target_f1:.4f}\nEpoch: {best_epoch}',
+                   xy=(best_epoch, best_target_f1), xytext=(best_epoch + 1, best_target_f1 - 0.05),
+                   arrowprops=dict(arrowstyle='->', color='green', alpha=0.7),
+                   bbox=dict(boxstyle="round,pad=0.3", facecolor='lightgreen', alpha=0.7),
+                   fontsize=9)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
+            print(f"F1-score plot saved to {save_path}")
+        
+        if show:
+            plt.show()
+        
+        return fig
+    
+    def plot_accuracy_f1_comparison(self, history: Dict, save_path: Optional[str] = None, show: bool = True) -> plt.Figure:
+        """
+        Plot accuracy and F1-score comparison for target validation set.
+        
+        Args:
+            history (dict): Training history dictionary from ModelTrainer
+            save_path (str, optional): Path to save the plot
+            show (bool): Whether to display the plot
+            
+        Returns:
+            matplotlib.figure.Figure: The created figure
+        """
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        
+        epochs = range(1, len(history['train_accuracies']) + 1)
+        
+        # Left plot: Accuracy comparison
+        ax1.plot(epochs, history['train_accuracies'], 
+                color=self.color_palette['train'], marker='o', linewidth=2,
+                label='Training', markersize=4)
+        ax1.plot(epochs, history['english_val_accuracies'], 
+                color=self.color_palette['english_val'], marker='s', linewidth=2,
+                label='English Val', markersize=4)
+        ax1.plot(epochs, history['target_val_accuracies'], 
+                color=self.color_palette['target_val'], marker='^', linewidth=2,
+                label='Target Val', markersize=4)
+        
+        ax1.set_xlabel('Epoch', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Accuracy', fontsize=12, fontweight='bold')
+        ax1.set_title('Accuracy Progression', fontsize=14, fontweight='bold')
+        ax1.legend(fontsize=10)
+        ax1.grid(True, alpha=0.3)
+        ax1.set_ylim(0, 1)
+        
+        # Right plot: F1-score comparison
+        ax2.plot(epochs, history['train_f1_scores'], 
+                color=self.color_palette['train'], marker='o', linewidth=2,
+                label='Training', markersize=4)
+        ax2.plot(epochs, history['english_val_f1_scores'], 
+                color=self.color_palette['english_val'], marker='s', linewidth=2,
+                label='English Val', markersize=4)
+        ax2.plot(epochs, history['target_val_f1_scores'], 
+                color=self.color_palette['target_val'], marker='^', linewidth=2,
+                label='Target Val', markersize=4)
+        
+        ax2.set_xlabel('Epoch', fontsize=12, fontweight='bold')
+        ax2.set_ylabel('F1-Score (Macro)', fontsize=12, fontweight='bold')
+        ax2.set_title('F1-Score Progression', fontsize=14, fontweight='bold')
+        ax2.legend(fontsize=10)
+        ax2.grid(True, alpha=0.3)
+        ax2.set_ylim(0, 1)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
+            print(f"Accuracy-F1 comparison plot saved to {save_path}")
+        
+        if show:
+            plt.show()
+        
+        return fig
+    
     def plot_learning_rate(self, history: Dict, save_path: Optional[str] = None, show: bool = True) -> plt.Figure:
         """
         Plot learning rate schedule over epochs.
@@ -284,7 +407,7 @@ class TrainingVisualizer:
         Returns:
             matplotlib.figure.Figure: The created figure
         """
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+        fig, axes = plt.subplots(3, 2, figsize=(16, 18))
         fig.suptitle('Cross-lingual Sentiment Training Dashboard', fontsize=16, fontweight='bold')
         
         epochs = range(1, len(history['train_losses']) + 1)
@@ -316,30 +439,59 @@ class TrainingVisualizer:
         axes[0, 1].grid(True, alpha=0.3)
         axes[0, 1].set_ylim(0, 1)
         
-        # Learning rate plot (bottom-left)
-        axes[1, 0].plot(epochs, history['learning_rates'], color=self.color_palette['lr'], 
-                       marker='o', label='Learning Rate', linewidth=2, markersize=3)
-        axes[1, 0].set_title('Learning Rate Schedule', fontweight='bold')
+        # F1-score plot (middle-left)
+        axes[1, 0].plot(epochs, history['train_f1_scores'], color=self.color_palette['train'], 
+                       marker='o', label='Training', linewidth=2, markersize=3)
+        axes[1, 0].plot(epochs, history['english_val_f1_scores'], color=self.color_palette['english_val'], 
+                       marker='s', label='English Val', linewidth=2, markersize=3)
+        axes[1, 0].plot(epochs, history['target_val_f1_scores'], color=self.color_palette['target_val'], 
+                       marker='^', label='Target Val', linewidth=2, markersize=3)
+        axes[1, 0].set_title('F1-Score Progression', fontweight='bold')
         axes[1, 0].set_xlabel('Epoch')
-        axes[1, 0].set_ylabel('Learning Rate')
+        axes[1, 0].set_ylabel('F1-Score (Macro)')
         axes[1, 0].legend()
         axes[1, 0].grid(True, alpha=0.3)
-        axes[1, 0].set_yscale('log')
+        axes[1, 0].set_ylim(0, 1)
         
-        # Transfer gap plot (bottom-right)
-        transfer_gap = np.array(history['english_val_accuracies']) - np.array(history['target_val_accuracies'])
-        axes[1, 1].plot(epochs, transfer_gap, color=self.color_palette['transfer_gap'], 
-                       marker='d', label='Transfer Gap', linewidth=2, markersize=3)
-        axes[1, 1].axhline(y=0, color='black', linestyle='--', alpha=0.5)
-        axes[1, 1].fill_between(epochs, transfer_gap, 0, where=(transfer_gap >= 0), 
-                               color='red', alpha=0.2)
-        axes[1, 1].fill_between(epochs, transfer_gap, 0, where=(transfer_gap < 0), 
-                               color='green', alpha=0.2)
-        axes[1, 1].set_title('Cross-lingual Transfer Gap', fontweight='bold')
+        # Learning rate plot (middle-right)
+        axes[1, 1].plot(epochs, history['learning_rates'], color=self.color_palette['lr'], 
+                       marker='o', label='Learning Rate', linewidth=2, markersize=3)
+        axes[1, 1].set_title('Learning Rate Schedule', fontweight='bold')
         axes[1, 1].set_xlabel('Epoch')
-        axes[1, 1].set_ylabel('Gap (English - Target)')
+        axes[1, 1].set_ylabel('Learning Rate')
         axes[1, 1].legend()
         axes[1, 1].grid(True, alpha=0.3)
+        axes[1, 1].set_yscale('log')
+        
+        # Transfer gap accuracy plot (bottom-left)
+        transfer_gap_acc = np.array(history['english_val_accuracies']) - np.array(history['target_val_accuracies'])
+        axes[2, 0].plot(epochs, transfer_gap_acc, color=self.color_palette['transfer_gap'], 
+                       marker='d', label='Accuracy Gap', linewidth=2, markersize=3)
+        axes[2, 0].axhline(y=0, color='black', linestyle='--', alpha=0.5)
+        axes[2, 0].fill_between(epochs, transfer_gap_acc, 0, where=(transfer_gap_acc >= 0), 
+                               color='red', alpha=0.2)
+        axes[2, 0].fill_between(epochs, transfer_gap_acc, 0, where=(transfer_gap_acc < 0), 
+                               color='green', alpha=0.2)
+        axes[2, 0].set_title('Cross-lingual Transfer Gap (Accuracy)', fontweight='bold')
+        axes[2, 0].set_xlabel('Epoch')
+        axes[2, 0].set_ylabel('Gap (English - Target)')
+        axes[2, 0].legend()
+        axes[2, 0].grid(True, alpha=0.3)
+        
+        # Transfer gap F1-score plot (bottom-right)
+        transfer_gap_f1 = np.array(history['english_val_f1_scores']) - np.array(history['target_val_f1_scores'])
+        axes[2, 1].plot(epochs, transfer_gap_f1, color='#8e44ad', 
+                       marker='d', label='F1-Score Gap', linewidth=2, markersize=3)
+        axes[2, 1].axhline(y=0, color='black', linestyle='--', alpha=0.5)
+        axes[2, 1].fill_between(epochs, transfer_gap_f1, 0, where=(transfer_gap_f1 >= 0), 
+                               color='red', alpha=0.2)
+        axes[2, 1].fill_between(epochs, transfer_gap_f1, 0, where=(transfer_gap_f1 < 0), 
+                               color='green', alpha=0.2)
+        axes[2, 1].set_title('Cross-lingual Transfer Gap (F1-Score)', fontweight='bold')
+        axes[2, 1].set_xlabel('Epoch')
+        axes[2, 1].set_ylabel('Gap (English - Target)')
+        axes[2, 1].legend()
+        axes[2, 1].grid(True, alpha=0.3)
         
         plt.tight_layout()
         
@@ -418,7 +570,8 @@ class TrainingVisualizer:
         Returns:
             matplotlib.figure.Figure: The created figure
         """
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
+        fig.suptitle('Final Performance Comparison', fontsize=16, fontweight='bold')
         
         # Final accuracies
         datasets = ['Training', 'English Val', 'Target Val']
@@ -440,6 +593,24 @@ class TrainingVisualizer:
             ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
                     f'{acc:.4f}', ha='center', va='bottom', fontweight='bold')
         
+        # Final F1-scores
+        final_f1_scores = [
+            history['train_f1_scores'][-1],
+            history['english_val_f1_scores'][-1],
+            history['target_val_f1_scores'][-1]
+        ]
+        
+        bars2 = ax2.bar(datasets, final_f1_scores, color=colors, alpha=0.8)
+        ax2.set_title('Final F1-Score Comparison', fontweight='bold')
+        ax2.set_ylabel('F1-Score (Macro)')
+        ax2.set_ylim(0, 1)
+        ax2.grid(True, alpha=0.3, axis='y')
+        
+        # Add value labels on bars
+        for bar, f1 in zip(bars2, final_f1_scores):
+            ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                    f'{f1:.4f}', ha='center', va='bottom', fontweight='bold')
+        
         # Final losses
         final_losses = [
             history['train_losses'][-1],
@@ -447,15 +618,33 @@ class TrainingVisualizer:
             history['target_val_losses'][-1]
         ]
         
-        bars2 = ax2.bar(datasets, final_losses, color=colors, alpha=0.8)
-        ax2.set_title('Final Loss Comparison', fontweight='bold')
-        ax2.set_ylabel('Loss')
-        ax2.grid(True, alpha=0.3, axis='y')
+        bars3 = ax3.bar(datasets, final_losses, color=colors, alpha=0.8)
+        ax3.set_title('Final Loss Comparison', fontweight='bold')
+        ax3.set_ylabel('Loss')
+        ax3.grid(True, alpha=0.3, axis='y')
         
         # Add value labels on bars
-        for bar, loss in zip(bars2, final_losses):
-            ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.001,
+        for bar, loss in zip(bars3, final_losses):
+            ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.001,
                     f'{loss:.4f}', ha='center', va='bottom', fontweight='bold')
+        
+        # Accuracy vs F1-Score comparison for target validation
+        metrics = ['Accuracy', 'F1-Score']
+        target_metrics = [
+            history['target_val_accuracies'][-1],
+            history['target_val_f1_scores'][-1]
+        ]
+        
+        bars4 = ax4.bar(metrics, target_metrics, color=['#3498db', '#e74c3c'], alpha=0.8)
+        ax4.set_title('Target Validation: Accuracy vs F1-Score', fontweight='bold')
+        ax4.set_ylabel('Score')
+        ax4.set_ylim(0, 1)
+        ax4.grid(True, alpha=0.3, axis='y')
+        
+        # Add value labels on bars
+        for bar, metric in zip(bars4, target_metrics):
+            ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                    f'{metric:.4f}', ha='center', va='bottom', fontweight='bold')
         
         plt.tight_layout()
         
@@ -474,6 +663,7 @@ class TrainingVisualizer:
         
         Args:
             history (dict): Training history dictionary from ModelTrainer
+            trainer (ModelTrainer, optional): Trainer instance for ROC curve generation
             output_dir (str): Directory to save all plots
         """
         os.makedirs(output_dir, exist_ok=True)
@@ -483,18 +673,22 @@ class TrainingVisualizer:
         # Generate all plots
         self.plot_losses(history, os.path.join(output_dir, "losses.png"), show=False)
         self.plot_accuracies(history, os.path.join(output_dir, "accuracies.png"), show=False)
+        self.plot_f1_scores(history, os.path.join(output_dir, "f1_scores.png"), show=False)
+        self.plot_accuracy_f1_comparison(history, os.path.join(output_dir, "accuracy_f1_comparison.png"), show=False)
         self.plot_learning_rate(history, os.path.join(output_dir, "learning_rate.png"), show=False)
         self.plot_transfer_gap(history, os.path.join(output_dir, "transfer_gap.png"), show=False)
         self.plot_training_dashboard(history, os.path.join(output_dir, "dashboard.png"), show=False)
         self.plot_final_comparison(history, os.path.join(output_dir, "final_comparison.png"), show=False)
+        
         # ROC curve (need trainer)
-        try:
-            fpr, tpr, roc_auc = trainer.get_roc_data(trainer.english_val_loader)
-            self.plot_roc_curve(fpr, tpr, roc_auc, 
-                            os.path.join(output_dir, "roc_curve.png"), 
-                            show=False)
-        except Exception as e:
-            print(f"Failed to generate ROC curve: {str(e)}")
+        if trainer is not None:
+            try:
+                fpr, tpr, roc_auc = trainer.get_roc_data(trainer.english_val_loader)
+                self.plot_roc_curve(fpr, tpr, roc_auc, 
+                                save_path=os.path.join(output_dir, "roc_curve.png"), 
+                                show=False)
+            except Exception as e:
+                print(f"Failed to generate ROC curve: {str(e)}")
         
         print(f"All plots saved successfully!")
     
@@ -527,6 +721,20 @@ def quick_plot_accuracies(history_path: str, save_path: Optional[str] = None):
     visualizer = TrainingVisualizer()
     history = visualizer.load_history_from_file(history_path)
     visualizer.plot_accuracies(history, save_path)
+
+
+def quick_plot_f1_scores(history_path: str, save_path: Optional[str] = None):
+    """Quick function to plot F1-scores from a history file."""
+    visualizer = TrainingVisualizer()
+    history = visualizer.load_history_from_file(history_path)
+    visualizer.plot_f1_scores(history, save_path)
+
+
+def quick_plot_accuracy_f1_comparison(history_path: str, save_path: Optional[str] = None):
+    """Quick function to plot accuracy vs F1-score comparison from a history file."""
+    visualizer = TrainingVisualizer()
+    history = visualizer.load_history_from_file(history_path)
+    visualizer.plot_accuracy_f1_comparison(history, save_path)
 
 
 def quick_dashboard(history_path: str, save_path: Optional[str] = None):

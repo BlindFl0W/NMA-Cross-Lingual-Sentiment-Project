@@ -17,7 +17,7 @@ Features:
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 from tqdm.auto import tqdm
 import os
 import json
@@ -101,13 +101,16 @@ class ModelTrainer:
         - Training history tracking and saving
         
         Returns:
-            dict: Training history containing losses, accuracies, and learning rates
+            dict: Training history containing losses, accuracies, F1-scores, and learning rates
                 - train_losses (list): Training loss for each epoch
                 - train_accuracies (list): Training accuracy for each epoch
+                - train_f1_scores (list): Training macro F1-score for each epoch
                 - english_val_losses (list): English validation loss for each epoch
                 - english_val_accuracies (list): English validation accuracy for each epoch
+                - english_val_f1_scores (list): English validation macro F1-score for each epoch
                 - target_val_losses (list): Target validation loss for each epoch
                 - target_val_accuracies (list): Target validation accuracy for each epoch
+                - target_val_f1_scores (list): Target validation macro F1-score for each epoch
                 - learning_rates (list): Learning rate for each epoch
         """
         self.model.train()
@@ -116,10 +119,13 @@ class ModelTrainer:
         history = {
             'train_losses': [],
             'train_accuracies': [],
+            'train_f1_scores': [],
             'english_val_losses': [],
             'english_val_accuracies': [],
+            'english_val_f1_scores': [],
             'target_val_losses': [],
             'target_val_accuracies': [],
+            'target_val_f1_scores': [],
             'learning_rates': [],
             # 'val_roc_auc': [], # add ROC auc
             # 'target_val_roc_auc':[]
@@ -173,10 +179,11 @@ class ModelTrainer:
             current_lr = self.optimizer.param_groups[0]['lr']
             avg_loss = total_loss / len(self.english_train_loader)
             train_acc = accuracy_score(train_labels, train_predictions)
+            train_f1 = f1_score(train_labels, train_predictions, average='macro')
             
             # Evaluate on validation sets
-            eng_val_loss, eng_val_acc, eng_probs, eng_labels = self.evaluate(self.english_val_loader, "English Val")
-            target_val_loss, target_val_acc, target_probs, target_labels = self.evaluate(self.target_val_loader, "Target Val")
+            eng_val_loss, eng_val_acc, eng_val_f1, eng_probs, eng_labels = self.evaluate(self.english_val_loader, "English Val")
+            target_val_loss, target_val_acc, target_val_f1, target_probs, target_labels = self.evaluate(self.target_val_loader, "Target Val")
             
             # No Need To calculate ROC auc in Training
             # # calculate English validation ROC auc
@@ -190,16 +197,19 @@ class ModelTrainer:
             # Store metrics in history
             history['train_losses'].append(avg_loss)
             history['train_accuracies'].append(train_acc)
+            history['train_f1_scores'].append(train_f1)
             history['english_val_losses'].append(eng_val_loss)
             history['english_val_accuracies'].append(eng_val_acc)
+            history['english_val_f1_scores'].append(eng_val_f1)
             history['target_val_losses'].append(target_val_loss)
             history['target_val_accuracies'].append(target_val_acc)
+            history['target_val_f1_scores'].append(target_val_f1)
             history['learning_rates'].append(current_lr)
             
             # Print epoch summary
-            print(f"Epoch {epoch+1}/{self.epochs} | Train Loss: {avg_loss:.4f}, Acc: {train_acc:.4f} | LR: {current_lr:.2e}")
-            print(f"  English Val - Loss: {eng_val_loss:.4f}, Acc: {eng_val_acc:.4f}")
-            print(f"  Target Val  - Loss: {target_val_loss:.4f}, Acc: {target_val_acc:.4f}")
+            print(f"Epoch {epoch+1}/{self.epochs} | Train Loss: {avg_loss:.4f}, Acc: {train_acc:.4f}, F1: {train_f1:.4f} | LR: {current_lr:.2e}")
+            print(f"  English Val - Loss: {eng_val_loss:.4f}, Acc: {eng_val_acc:.4f}, F1: {eng_val_f1:.4f}")
+            print(f"  Target Val  - Loss: {target_val_loss:.4f}, Acc: {target_val_acc:.4f}, F1: {target_val_f1:.4f}")
             
             # Save model checkpoint after each epoch
             self.save_model(f"model_epoch_{epoch+1}.pth")
@@ -218,9 +228,12 @@ class ModelTrainer:
             dataset_name (str, optional): Name of the dataset for progress bar display
             
         Returns:
-            tuple: (average_loss, accuracy)
+            tuple: (average_loss, accuracy, f1_score, probabilities, true_labels)
                 - average_loss (float): Average loss across all batches
                 - accuracy (float): Classification accuracy (0-1)
+                - f1_score (float): Macro-averaged F1-score (0-1)
+                - probabilities (np.array): Predicted class probabilities
+                - true_labels (np.array): True labels
         """
         self.model.eval()  # Set model to evaluation mode
         total_loss = 0
@@ -254,10 +267,11 @@ class ModelTrainer:
         # Calculate metrics
         avg_loss = total_loss / len(data_loader)
         accuracy = accuracy_score(true_labels, predictions)
+        f1 = f1_score(true_labels, predictions, average='macro')
         
         # Return to training mode
         self.model.train()
-        return avg_loss, accuracy, np.array(all_probs), np.array(true_labels)
+        return avg_loss, accuracy, f1, np.array(all_probs), np.array(true_labels)
 
     def compute_roc(self, probs, true_labels):
         """calculate multiclass ROC and AUC"""
@@ -279,7 +293,7 @@ class ModelTrainer:
 
     def get_roc_data(self, data_loader):
         """get data to plot ROC curve"""
-        _, _, probs, labels = self.evaluate(data_loader)
+        _, _, _, probs, labels = self.evaluate(data_loader)
         return self.compute_roc(probs, labels)
 
     def test(self):
@@ -287,13 +301,14 @@ class ModelTrainer:
         Evaluate the model on the target language test set.
         
         Returns:
-            tuple: (test_loss, test_accuracy)
+            tuple: (test_loss, test_accuracy, test_f1_score)
                 - test_loss (float): Average test loss
                 - test_accuracy (float): Test accuracy (0-1)
+                - test_f1_score (float): Macro-averaged F1-score (0-1)
         """
-        test_loss, test_acc = self.evaluate(self.target_test_loader, "Target Test")
-        print(f"Test Results - Loss: {test_loss:.4f}, Acc: {test_acc:.4f}")
-        return test_loss, test_acc
+        test_loss, test_acc, test_f1, _, _ = self.evaluate(self.target_test_loader, "Target Test")
+        print(f"Test Results - Loss: {test_loss:.4f}, Acc: {test_acc:.4f}, F1: {test_f1:.4f}")
+        return test_loss, test_acc, test_f1
 
     def save_model(self, filename):
         """
